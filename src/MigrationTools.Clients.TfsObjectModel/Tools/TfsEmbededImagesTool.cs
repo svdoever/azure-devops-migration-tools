@@ -76,7 +76,18 @@ namespace MigrationTools.Tools
 
                 try
                 {
-                    MatchCollection matches = Regex.Matches((string)field.Value, RegexPatternForImageUrl);
+                    // The RegexPatternForImageUrl pattern is too restrictive, only matches:
+                    // < img src="https://dev.azure.com/DEV-01/19f380ba-c69f-4496-9c8f-68eed9767b86/_apis/wit/attachments/7872efe7-7343-4412-931c-e98a9f93df8a?fileName=srcimg.png">
+                    // But not:
+                    // ! [The src image](https://dev.azure.com/DEV-01/19f380ba-c69f-4496-9c8f-68eed9767b86/_apis/wit/attachments/7872efe7-7343-4412-931c-e98a9f93df8a?fileName=srcimg.png =200x400)
+                    // When HTML field is used as a Markdown field.
+                    // MatchCollection matches = Regex.Matches((string)field.Value, RegexPatternForImageUrl);
+                    var collection = this._processor.Source.InternalCollection; // something like https://dev.azure.com/DEV-01
+                    string escapedCollection = Regex.Escape(collection.ToString().TrimEnd('/')); // Escape the collection URL for regex
+                    // If the escaped collection ends "/", remove it
+
+                    string imageUrlPattern = $@"{escapedCollection}/[a-f0-9]{{8}}-[a-f0-9]{{4}}-[a-f0-9]{{4}}-[a-f0-9]{{4}}-[a-f0-9]{{12}}/_apis/wit/attachments/[^""\s)]+";
+                    MatchCollection matches = Regex.Matches((string)field.Value, imageUrlPattern, RegexOptions.IgnoreCase);
                     foreach (Match match in matches)
                     {
                         if (!match.Value.ToLower().Contains(oldTfsurl.ToLower()) && !match.Value.ToLower().Contains(oldTfsurlOppositeSchema.ToLower()))
